@@ -1,27 +1,31 @@
 <?php
 
-namespace splattner\mailmanapi;
+namespace oujonny\mailmanapi;
 
+use DOMDocument;
+use DOMNodeList;
 use GuzzleHttp\Client;
+use GuzzleHttp\Exception\GuzzleException;
 
 class MailmanAPI {
 
 	private $mailmanURL;
 	private $password;
-	private $client;
+	private Client $client;
 
-	/**
-	 * @param $mailmanurl
-	 *  Mailman Base URL
-	 * @param $password
-	 *  Administration Passwort for your Mailman List
-	 */
-	public function __construct($mailmalurl, $password, $validade_ssl_certs = true) {
+    /**
+     * @param $mailmanurl
+     * @param $password
+     *  Administration Password for your Mailman List
+     * @param bool $validate_ssl_certs
+     * @throws GuzzleException
+     */
+	public function __construct($mailmanurl, $password, bool $validate_ssl_certs = true) {
 
-		$this->mailmanURL = $mailmalurl;
-		$this->password = $password;
+		$this->mailmanURL = $mailmanurl;
+        $this->password = $password;
 
-		$this->client = new Client(['base_uri' => $this->mailmanURL, 'cookies' => true, 'verify' => $validade_ssl_certs]);
+		$this->client = new Client(['base_uri' => $this->mailmanURL, 'cookies' => true, 'verify' => $validate_ssl_certs]);
 
 		$response = $this->client->request('POST', '', [
     'form_params' => [
@@ -34,19 +38,19 @@ class MailmanAPI {
 
 	/**
 	 * Return Array of all Members in a Mailman List
+	 * @throws GuzzleException
 	 */
 	public function getMemberlist() {
 
 		$response = $this->client->request('GET', $this->mailmanURL . '/members');
 
-		$dom = new \DOMDocument;
+		$dom = new DOMDocument;
 		$dom->loadHTML($response->getBody());
 
-		$tables = $dom->getElementsByTagName("table")[4];
-
+        $tables = $dom->getElementsByTagName("table")[4];
 		$trs = $tables->getElementsByTagName("tr");
 
-		// Get all the urs for the letters
+		// Get all the urls for the letters
 		$letterLinks = $trs[1];
 		$links = $letterLinks->getElementsByTagName("a");
 
@@ -65,7 +69,7 @@ class MailmanAPI {
 		foreach($urlsForLetters as $url) {
 			$response = $this->client->request('GET', $url);
 
-			$dom = new \DOMDocument('1.0', 'UTF-8');
+			$dom = new DOMDocument('1.0', 'UTF-8');
 
 			// set error level
 			$internalErrors = libxml_use_internal_errors(true);
@@ -113,8 +117,9 @@ class MailmanAPI {
 	 * Add new Members to a Mailman List
 	 * @param $members
 	 *  Array of Members that should be added
-	 * @return
+	 * @return array Array of Members that were successfully added
 	 *  Array of Members that were successfully added
+	 * @throws GuzzleException
 	 */
 	public function addMembers($members) {
 
@@ -139,8 +144,9 @@ class MailmanAPI {
 	 * Remove Members to a Mailman List
 	 * @param $members
 	 *  Array of Members that should be added
-	 * @return
+	 * @return array Array of Members that were successfully removed
 	 *  Array of Members that were successfully removed
+	 * @throws GuzzleException
 	 */
 	public function removeMembers($members) {
 
@@ -162,10 +168,10 @@ class MailmanAPI {
 	/**
 	 * Change Address for a member
 	 * @param $memberFrom
-	 *  The Adress from the member you wanna change
+	 *  The Address from the member you wanna change
 	 * @param $memberTo
-	 *  The Adress it should be changed to
-
+	 *  The Address it should be changed to
+	 * @throws GuzzleException
 	 */
 	public function changeMember($memberFrom, $memberTo) {
 
@@ -179,7 +185,7 @@ class MailmanAPI {
 			]
 		]);
 
-		$dom = new \DOMDocument;
+		$dom = new DOMDocument;
 		$dom->loadHTML($response->getBody());
 
 		$h3 = $dom->getElementsByTagName("h3")[0];
@@ -192,12 +198,12 @@ class MailmanAPI {
 	 * Parse the HTML Body of an Add or Remove Action to get List of successfull add/remove entries
 	 * @param $body
 	 *  the HTML Body of the Result Page
-	 * @return
+	 * @return array Array of Entrys that were successfull
 	 * Array of Entrys that were successfull
 	 */
 	private function parseResultList($body) {
 
-		$dom = new \DOMDocument;
+		$dom = new DOMDocument;
 		$dom->loadHTML($body);
 
 		$result = array();
@@ -211,7 +217,7 @@ class MailmanAPI {
 
 			foreach($lis as $li) {
 				// Warning after --
-				if (strpos($li->nodeValue, '--') == False) {
+				if (!strpos($li->nodeValue, '--')) {
 					$result[] = $li->nodeValue;
 				}
 			}
@@ -229,7 +235,7 @@ class MailmanAPI {
 
 		$response = $this->client->request('GET', $this->mailmanURL . '/members');
 
-		$dom = new \DOMDocument;
+		$dom = new DOMDocument;
 		$dom->loadHTML($response->getBody());
 
 		$form = $dom->getElementsByTagName("form")[0];
@@ -240,4 +246,4 @@ class MailmanAPI {
 }
 
 
-?>
+
